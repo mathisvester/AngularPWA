@@ -1,9 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, switchMap, take } from 'rxjs';
-import { Post } from './app.component';
+import { Post } from '../app.component';
 import { StorageService } from './storage.service';
-import { environment } from '../environments/environment';
+import { environment } from '../../environments/environment';
 import { WindowService } from './window.service';
 
 @Injectable({
@@ -38,7 +38,7 @@ export class PostService {
         if (online) {
           return this.httpClient.post<Post>(this.baseUrl, post);
         } else {
-          return this.storageService.addPost(post);
+          return this.storageService.addPost({ ...post, offlineCreated: true });
         }
       })
     );
@@ -51,20 +51,20 @@ export class PostService {
         if (online) {
           return this.httpClient.put<Post>(`${this.baseUrl}/${post.id}`, post);
         } else {
-          return this.storageService.updatePost(post);
+          return this.storageService.updatePost({ ...post, offlineUpdated: true });
         }
       })
     );
   }
 
-  deletePost(post: Post): Observable<unknown> {
+  deletePost(postId: string): Observable<unknown> {
     return this.online$.pipe(
       take(1),
       switchMap(online => {
         if (online) {
-          return this.httpClient.delete(`${this.baseUrl}/${post.id}`);
+          return this.httpClient.delete(`${this.baseUrl}/${postId}`);
         } else {
-          return this.storageService.deletePost(post);
+          return this.storageService.deletePost(postId);
         }
       })
     );

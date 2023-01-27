@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { from, map, Observable, shareReplay, Subject, switchMap, zip } from 'rxjs';
-import { Post } from './app.component';
+import { Post } from '../app.component';
 import { StorageService } from './storage.service';
 import { WindowService } from './window.service';
 
@@ -31,7 +31,7 @@ export class SyncService {
   );
 
   private readonly deletedPosts$: Observable<Post[]> = this.storedPosts$.pipe(
-    map(posts => posts.filter(post => post?.offlineDeleted))
+    map(posts => posts.filter(post => post?.offlineDeleted)) // TODO: deleted posts must be fixed because the flag isn't set currently
   );
 
   constructor(private windowService: WindowService,

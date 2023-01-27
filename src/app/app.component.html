@@ -4,15 +4,15 @@
 <button (click)="reload()">Reload</button>
 
 <h1>Posts</h1>
-<ng-container *ngFor="let post of posts$ | async; index as i">
+<ng-container *ngFor="let post of posts$ | async">
   <div *ngIf="!post?.offlineDeleted">
     <p>{{ post.title }}, {{ post.author }}</p>
-    <button (click)="selectPost(post)">Update</button><button (click)="deletePost(post)">Delete</button>
+    <button (click)="selectPost(post)">Update</button><button (click)="deletePost(post.id)">Delete</button>
   </div>
 </ng-container>
 
 <h2>Add post</h2>
-<form *ngIf="form$ | async as form" [formGroup]="form" (ngSubmit)="addOrUpdatePost()">
+<form *ngIf="form$ | async as form" [formGroup]="form" (ngSubmit)="submit(form.value)">
   <input type="text" placeholder="Title" formControlName="title">
   <input type="text" placeholder="Author" formControlName="author">
   <button [disabled]="!form.valid">Submit</button>

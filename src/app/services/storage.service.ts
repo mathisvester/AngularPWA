@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 
 import { Storage } from '@ionic/storage-angular';
 import { from, map, Observable, switchMap, tap } from 'rxjs';
-import { Post } from './app.component';
+import { Post } from '../app.component';
 
 @Injectable({
   providedIn: 'root'
@@ -49,20 +49,16 @@ export class StorageService {
   updatePost(post: Post): Observable<Post> {
     return from(this.get('posts')).pipe(
       switchMap((posts: Post[]) => {
-        return from(this.set('posts', posts.map(item => item.id === post.id ? { ...item, ...post, offlineUpdated: true } : item)));
+        return from(this.set('posts', posts.map(item => item.id === post.id ? { ...item, ...post } : item)));
       }),
       map(() => post)
     );
   }
 
-  deletePost(post: Post): Observable<unknown> {
+  deletePost(postId: string): Observable<unknown> {
     return from(this.get('posts')).pipe(
       switchMap((posts: Post[]) => {
-        if (post?.offlineCreated) {
-          return from(this.set('posts', posts.filter(item => post.id !== item.id)));
-        } else {
-          return from(this.set('posts', posts.map(item => item.id === post.id ? { ...item, offlineDeleted: true } : item)));
-        }
+        return from(this.set('posts', posts.filter(post => postId !== post.id)));
       }),
       map(() => undefined)
     );

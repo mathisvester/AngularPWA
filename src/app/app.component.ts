@@ -1,11 +1,14 @@
-import { Component } from '@angular/core';
-import { BehaviorSubject, map, Observable, shareReplay, switchMap, take, withLatestFrom } from 'rxjs';
-import { PostService } from './post.service';
+import { Component, OnInit } from '@angular/core';
+import { map, Observable, shareReplay, take } from 'rxjs';
+import { PostService } from './services/post.service';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { v4 as uuidv4 } from 'uuid';
-import { SyncService } from './sync.service';
-import { WindowService } from './window.service';
-import { StorageService } from './storage.service';
+import { SyncService } from './services/sync.service';
+import { WindowService } from './services/window.service';
+import { StorageService } from './services/storage.service';
+import { Store } from '@ngrx/store';
+import { selectActivePost, selectAll } from './state/posts.selectors';
+import { createPost, deletePost, enter, reload, selectPost, updatePost } from './state/posts.actions';
 
 export interface NewPost {
   title: string;
@@ -24,21 +27,15 @@ export interface Post extends NewPost {
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   title = 'pwa-offline';
 
   readonly connection$: Observable<boolean> = this.windowService.connection$;
 
-  private reload$: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(true);
+  readonly posts$: Observable<Post[]> = this.store.select(selectAll);
+  readonly currentPost$: Observable<Post | NewPost> = this.store.select(selectActivePost);
 
-  readonly posts$: Observable<Post[]> = this.reload$.asObservable().pipe(
-    switchMap(() => this.postService.getPosts()),
-    shareReplay({ bufferSize: 1, refCount: true })
-  );
-
-  private selectedPost$: BehaviorSubject<Post | NewPost> = new BehaviorSubject<Post | NewPost>({ title: '', author: '' });
-
-  form$: Observable<FormGroup> = this.selectedPost$.asObservable().pipe(
+  form$: Observable<FormGroup> = this.currentPost$.pipe(
     map(post => this.fb.group({
       title: [ post.title, Validators.required ],
       author: [ post.author, Validators.required ]
@@ -54,35 +51,41 @@ export class AppComponent {
               private readonly windowService: WindowService,
               private storageService: StorageService,
               private syncService: SyncService,
+              private store: Store,
               private fb: FormBuilder) {
-    this.posts$.subscribe(posts => this.storageService.set('posts', posts));
+    // this.posts$.subscribe(posts => this.storageService.set('posts', posts)); TODO: fix initial save
+  }
+
+  ngOnInit() {
+    this.store.dispatch(enter());
   }
 
   selectPost(post: Post) {
-    this.selectedPost$.next(post);
+    this.store.dispatch(selectPost({ postId: post.id }));
   }
 
-  addOrUpdatePost() {
-    this.form$.pipe(
-      take(1),
-      withLatestFrom(this.selectedPost$.asObservable()),
-      switchMap(([form, selectedPost]) => {
-        if (AppComponent.isPost(selectedPost)) {
-          return this.postService.updatePost({ ...selectedPost, ...form.value });
-        } else {
-          return this.postService.addPost({ id: uuidv4(), ...form.value });
-        }
-      })
-    ).subscribe(() => {
-      this.reload$.next(true);
-      this.selectedPost$.next({ title: '', author: '' });
+  submit(post: NewPost) {
+    this.currentPost$.pipe(
+      take(1)
+    ).subscribe(currentPost => {
+      if (AppComponent.isPost(currentPost)) {
+        this.updatePost({ ...currentPost, ...post });
+      } else {
+        this.createPost(post);
+      }
     });
   }
 
-  deletePost(post: Post) {
-    this.postService.deletePost(post).pipe(
-      take(1)
-    ).subscribe(() => this.reload$.next(true));
+  createPost(post: NewPost) {
+    this.store.dispatch(createPost({ post: { id: uuidv4(), ...post } }));
+  }
+
+  updatePost(post: Post) {
+    this.store.dispatch(updatePost({ post }));
+  }
+
+  deletePost(postId: string) {
+    this.store.dispatch(deletePost({ postId }));
   }
 
   sync() {
@@ -90,7 +93,7 @@ export class AppComponent {
   }
 
   reload() {
-    this.reload$.next(true);
+    this.store.dispatch(reload());
   }
 
 }
